@@ -21,7 +21,7 @@ type SharedFutureSchema<'a> = Shared<BoxFuture<'a, Result<Arc<Vec<String>>, SRCE
 pub struct ProtoDecoder<'a> {
     sr_settings: SrSettings,
     direct_cache: DashMap<u32, Arc<Vec<String>>>,
-    context_cache: DashMap<u32, Arc<DecodeContext<'a>>>
+    context_cache: DashMap<u32, Arc<DecodeContext<'a>>>,
     cache: DashMap<u32, SharedFutureSchema<'a>>,
 }
 
@@ -107,7 +107,7 @@ impl<'a> ProtoDecoder<'a> {
         } else {
             let vec_of_schemas = self.get_vec_of_schemas(id).await?;
             let context = into_decode_context(vec_of_schemas.to_vec())?;
-            self.context_cache.insert(id, Arc::from(context))
+            self.context_cache.insert(id, Arc::from(context));
             self.context_cache.get(&id).unwrap().value().clone()
         };
         let (index, data_bytes) = to_index_and_data(bytes);
@@ -159,9 +159,9 @@ impl<'a> ProtoDecoder<'a> {
 }
 
 #[derive(Debug)]
-pub struct DecodeResultWithContext {
+pub struct DecodeResultWithContext<'a> {
     pub value: MessageValue,
-    pub context: DecodeContext,
+    pub context: Arc<DecodeContext<'a>>,
     pub full_name: Arc<String>,
     pub data_bytes: Vec<u8>,
 }
