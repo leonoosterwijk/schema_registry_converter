@@ -81,6 +81,7 @@ enum Token {
     #[token("}", priority = 10)]
     Close,
 
+    #[regex(r#";\n"#, priority = 11)]
     #[regex(r"\S", logos::skip, priority = 1)]
     #[regex(r"[\s]+", logos::skip, priority = 1)]
     Ignorable,

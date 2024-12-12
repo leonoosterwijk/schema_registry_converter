@@ -21,6 +21,7 @@ type SharedFutureSchema<'a> = Shared<BoxFuture<'a, Result<Arc<Vec<String>>, SRCE
 pub struct ProtoDecoder<'a> {
     sr_settings: SrSettings,
     direct_cache: DashMap<u32, Arc<Vec<String>>>,
+    context_cache: DashMap<u32, Arc<DecodeContext<'a>>>
     cache: DashMap<u32, SharedFutureSchema<'a>>,
 }
 
@@ -34,6 +35,7 @@ impl<'a> ProtoDecoder<'a> {
         ProtoDecoder {
             sr_settings,
             direct_cache: DashMap::new(),
+            context_cache: DashMap::new(),
             cache: DashMap::new(),
         }
     }
@@ -99,8 +101,15 @@ impl<'a> ProtoDecoder<'a> {
         id: u32,
         bytes: &[u8],
     ) -> Result<DecodeResultWithContext, SRCError> {
-        let vec_of_schemas = self.get_vec_of_schemas(id).await?;
-        let context = into_decode_context(vec_of_schemas.to_vec())?;
+
+        let context = if self.context_cache.contains_key(&id) {
+            self.context_cache.get(&id).unwrap().value().clone()
+        } else {
+            let vec_of_schemas = self.get_vec_of_schemas(id).await?;
+            let context = into_decode_context(vec_of_schemas.to_vec())?;
+            self.context_cache.insert(id, Arc::from(context))
+            self.context_cache.get(&id).unwrap().value().clone()
+        };
         let (index, data_bytes) = to_index_and_data(bytes);
         let full_name = resolve_name(&context.resolver, &index)?;
         let message_info = context.context.get_message(&full_name).unwrap();
@@ -174,20 +183,23 @@ fn add_files<'a>(
 }
 
 #[derive(Debug)]
-pub struct DecodeContext {
-    pub resolver: MessageResolver,
-    pub context: Context,
+pub struct DecodeContext<'a> {
+    pub resolver: Box<MessageResolver>,
+    pub context: &'a Context,
 }
 
-fn into_decode_context(vec_of_schemas: Vec<String>) -> Result<DecodeContext, SRCError> {
-    let resolver = MessageResolver::new(vec_of_schemas.last().unwrap());
+fn into_decode_context(vec_of_schemas: Vec<String>) -> Result<DecodeContext<'static>, SRCError> {
+    let resolver = Box::new(MessageResolver::new(vec_of_schemas.last().unwrap()));
     let mut files: Vec<String> = Vec::new();
     add_common_files(resolver.imports(), &mut files);
     for s in vec_of_schemas {
         files.push(s);
     }
     match Context::parse(files) {
-        Ok(context) => Ok(DecodeContext { resolver, context }),
+        Ok(context) => {
+            let context = Box::lead(Box::new(context));
+            Ok(DecodeContext { resolver, context })
+        },
         Err(e) => Err(SRCError::non_retryable_with_cause(
             e,
             "Error creating proto context",

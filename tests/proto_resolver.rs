@@ -1,4 +1,4 @@
-use schema_registry_converter::proto_resolver::{IndexResolver, MessageResolver};
+// use schema_registry_converter::proto_resolver::{IndexResolver, MessageResolver};
 use std::sync::Arc;
 
 fn get_proto_complex() -> &'static str {
@@ -31,9 +31,10 @@ message GoogleTest {
 }"#
 }
 
+#[cfg(all(feature = "proto_raw", feature = "kafka_test"))]
 #[test]
 fn test_schema_with_three_imports() {
-    let resolver = MessageResolver::new(get_three_complex());
+    let resolver = schema_registry_converter::proto_resolver::MessageResolver::new(get_three_complex());
     assert_eq!(resolver.imports.len(), 3);
     assert_eq!(resolver.imports[0], String::from("google/type/color.proto"));
     assert_eq!(
@@ -43,9 +44,10 @@ fn test_schema_with_three_imports() {
     assert_eq!(resolver.imports[2], String::from("google/type/money.proto"));
 }
 
+#[cfg(all(feature = "proto_raw", feature = "kafka_test"))]
 #[test]
 fn test_complex_schema_index_resolver() {
-    let resolver = IndexResolver::new(get_proto_complex());
+    let resolver = schema_registry_converter::proto_resolver::IndexResolver::new(get_proto_complex());
 
     assert_eq!(
         resolver.find_index("org.schema_registry_test_app.proto.A"),
