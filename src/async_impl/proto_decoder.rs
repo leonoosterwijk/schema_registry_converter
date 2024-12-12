@@ -197,7 +197,7 @@ fn into_decode_context(vec_of_schemas: Vec<String>) -> Result<DecodeContext<'sta
     }
     match Context::parse(files) {
         Ok(context) => {
-            let context = Box::lead(Box::new(context));
+            let context = Box::leak(Box::new(context));
             Ok(DecodeContext { resolver, context })
         },
         Err(e) => Err(SRCError::non_retryable_with_cause(
